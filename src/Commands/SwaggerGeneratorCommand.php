@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton\Commands;
+namespace Zibafar\SwaggerGenerator\Commands;
 
 use Illuminate\Console\Command;
 
-class SkeletonCommand extends Command
+class SwaggerGeneratorCommand extends Command
 {
-    public $signature = 'skeleton';
+    public $signature = 'swagger-generator';
 
     public $description = 'My command';
 
