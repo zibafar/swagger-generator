@@ -6,7 +6,6 @@ use Composer\ClassMapGenerator\ClassMapGenerator;
 use Exception;
 use Illuminate\Console\Command;
 use ReflectionClass;
-
 use Route;
 
 class MakeSwaggerForController extends Command
@@ -52,15 +51,14 @@ class MakeSwaggerForController extends Command
      */
     private function generateSwagger($namespace_input_file = [])
     {
-
         $all = empty(array_filter($namespace_input_file)) ? $this->loadControllers() : $namespace_input_file;
-        $swagger = "";
+        $swagger = '';
 
         foreach ($all as $name) {
             try {
                 $reflectionClass = new ReflectionClass($name);
 
-                if (!$reflectionClass->isSubclassOf('Illuminate\Routing\Controller')) {
+                if (! $reflectionClass->isSubclassOf('Illuminate\Routing\Controller')) {
                     continue;
                 }
 
@@ -70,9 +68,9 @@ class MakeSwaggerForController extends Command
                 $this->error($ex->getMessage());
             }
         }
+
         return $swagger;
     }
-
 
     private function putToFile($content)
     {
@@ -81,12 +79,12 @@ class MakeSwaggerForController extends Command
 
         $path = lcfirst(str_replace('\\', '/', $path));
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             mkdir($path, 0755, true);
         }
 
-        $fullName = $path . '/' . $filename . ".php";
-        file_put_contents($fullName, $content . "\n }");
+        $fullName = $path.'/'.$filename.'.php';
+        file_put_contents($fullName, $content."\n }");
         $this->info($fullName);
         // dd("ok");
     }
@@ -99,31 +97,28 @@ class MakeSwaggerForController extends Command
 
         $header = $this->getHeader($data->first());
 
-
-        return $header .
+        return $header.
             $doc;
     }
+
     private function generateDoc($data)
     {
-
-        $str = "";
+        $str = '';
         foreach ($data as $item) {
-
-            $method = $item["method"];
+            $method = $item['method'];
 
             $reqs = $this->swaggerRequest($method, $item);
             $response = $this->swaggerResponse($method, $item);
             $str .= $this->swaggerForMethod($method, $item, $reqs, $response);
         }
+
         return $str;
     }
 
     private function swaggerRequest($method, $item)
     {
-
-
         if (count($item['requests']) === 0) {
-            return "";
+            return '';
         }
         $str = "* @OA\RequestBody(
             ";
@@ -132,53 +127,51 @@ class MakeSwaggerForController extends Command
                      *   @OA\JsonContent(ref=\"#/components/schemas/{$i}\")
      ";
         }
-        $str .= "*),";
+        $str .= '*),';
+
         return $str;
     }
 
     private function swaggerResponse($method, $item)
     {
-
-
-        if (!isset($item['response'])) {
-            return "";
+        if (! isset($item['response'])) {
+            return '';
         }
         $str = "* @OA\Response(response=200, description=\"Successful operation\",
         * @OA\JsonContent(";
-        $item["response"] = "UserSwagger";
-        $str .= "  * @OA\Property(ref=\"#/components/schemas/{$item["response"]}\"),)),
+        $item['response'] = 'UserSwagger';
+        $str .= "  * @OA\Property(ref=\"#/components/schemas/{$item['response']}\"),)),
             ";
 
-        $str .= "*
-            * )";
+        $str .= '*
+            * )';
+
         return $str;
     }
 
-
     private function swaggerForMethod($method, $item, $reqs, $response)
     {
-        if ($method == "Get") {
+        if ($method == 'Get') {
             return $this->swaggerForGet($item, $reqs, $response);
         }
         // if ($method == "Post") {
         //     return $this->swaggerForPost($item, $reqs, $response);
         // }
     }
+
     private function swaggerForGet($item, $reqs, $response)
     {
-
-
         $str = "/**
             * @OA\\Get(
-            * path=\"{$item["uri"]}\",
-            * tags={\"{$item["tag"]}\"},
-            * summary=\"{$item["summary"]}\",
+            * path=\"{$item['uri']}\",
+            * tags={\"{$item['tag']}\"},
+            * summary=\"{$item['summary']}\",
             {$reqs}
             {$response}
             *
             *
             */
-            public function {$item["function"]}()
+            public function {$item['function']}()
             {
             }
             ";
@@ -192,6 +185,7 @@ class MakeSwaggerForController extends Command
         $className = $data['className'];
         $this->des_namespace = $data['namespace'];
         $this->des_class = $data['className'];
+
         return "<?php
         namespace {$namespace};
         class {$className}{
@@ -200,13 +194,12 @@ class MakeSwaggerForController extends Command
 
     private function getAllFunctionsInfoInControllerByNameSpace(string $namespace, $first = false)
     {
-
-
         $data = collect(Route::getRoutes())->filter(function ($item) use ($namespace) {
             if (isset($item->action['controller'])) {
                 $str = $item->action['controller'];
                 $class_name = \Str::beforeLast($str, '@');
                 $reflectionClass = new ReflectionClass($class_name);
+
                 return $reflectionClass->isSubclassOf('Illuminate\Routing\Controller')
                     && \Str::contains($str, $namespace, true);
             }
@@ -215,41 +208,44 @@ class MakeSwaggerForController extends Command
             $class_info = $this->getClassIno($full_class_name);
             $funcName = $this->getFunctionName($full_class_name);
             $item = $row;
+
             return $class_info + [
-                "uri" => $row->uri,
-                "tag" => self::getTag($row->uri),
-                "method" => \Str::title($row->methods[0]),
-                "function" => $funcName,
-                "summary" => self::getSummary($item, $funcName),
-                "requests" => self::getArgumentTypesOfFunction($full_class_name, $funcName),
-                "response" => self::getReturnTypeOfFunction($full_class_name, $funcName)
+                'uri' => $row->uri,
+                'tag' => self::getTag($row->uri),
+                'method' => \Str::title($row->methods[0]),
+                'function' => $funcName,
+                'summary' => self::getSummary($item, $funcName),
+                'requests' => self::getArgumentTypesOfFunction($full_class_name, $funcName),
+                'response' => self::getReturnTypeOfFunction($full_class_name, $funcName),
             ];
         });
-
 
         return $first ? $data->first() : $data;
     }
 
-    private  function getFunctionName($str)
+    private function getFunctionName($str)
     {
-        return \Str::afterLast($str, '@') ?? "_invoke";
+        return \Str::afterLast($str, '@') ?? '_invoke';
     }
-    private static  function getTag($str, $separator = ".")
+
+    private static function getTag($str, $separator = '.')
     {
-        return implode($separator, array_map("Str::title", explode('/', $str)));
+        return implode($separator, array_map('Str::title', explode('/', $str)));
     }
-    private static  function getSummary($row, $funcName)
+
+    private static function getSummary($row, $funcName)
     {
-        $txt = self::getTag($row->uri, " ");
+        $txt = self::getTag($row->uri, ' ');
+
         return "{$row->methods[0]}  {$txt} function name is:  {$funcName} ";
     }
 
-    private  function getClassIno($str)
+    private function getClassIno($str)
     {
         $old_namespace = \Str::beforeLast($str, '@');
         $namespace = str_replace($this->src_namespace, $this->namespace, $old_namespace);
-        $className = \Str::afterLast($namespace, "\\") . "Swagger";
-        $namespace = \Str::beforeLast($namespace, "\\");
+        $className = \Str::afterLast($namespace, '\\').'Swagger';
+        $namespace = \Str::beforeLast($namespace, '\\');
 
         return ['namespace' => $namespace, 'className' => $className];
     }
@@ -264,8 +260,9 @@ class MakeSwaggerForController extends Command
 
         $dirs = glob($dir, GLOB_ONLYDIR);
         foreach ($dirs as $dir) {
-            if (!is_dir($dir)) {
+            if (! is_dir($dir)) {
                 $this->error("Cannot locate directory '{$dir}'");
+
                 continue;
             }
 
@@ -276,7 +273,7 @@ class MakeSwaggerForController extends Command
                 ksort($classMap);
 
                 foreach ($classMap as $c => $path) {
-                    if (\Str::contains($c, ["Abstract"])) {
+                    if (\Str::contains($c, ['Abstract'])) {
                         continue;
                     }
                     $controllers[] = $c;
@@ -293,32 +290,30 @@ class MakeSwaggerForController extends Command
 
         $types = [];
         if (method_exists($controllerName, $methodName)) {
-
             $reflectionFunction = new \ReflectionMethod($controllerName, $methodName);
             $params = $reflectionFunction->getParameters();
 
             foreach ($params as $param) {
                 if (isset($param)) {
-                    $types[] = \Str::afterLast($param?->getType()?->getName(), "\\") . "Swagger";
+                    $types[] = \Str::afterLast($param?->getType()?->getName(), '\\').'Swagger';
                 }
             }
         }
 
         return $types;
     }
+
     private static function getReturnTypeOfFunction($controllerName, $methodName): string
     {
-
         $controllerName = \Str::beforeLast($controllerName, '@');
 
         $type = '';
         if (method_exists($controllerName, $methodName)) {
-
             $reflectionFunction = new \ReflectionMethod($controllerName, $methodName);
             $params = $reflectionFunction->getReturnType();
             if (isset($params)) {
-                $s = $params->getName() ?? "";
-                $type = \Str::afterLast($s, "\\");
+                $s = $params->getName() ?? '';
+                $type = \Str::afterLast($s, '\\');
             }
         }
 

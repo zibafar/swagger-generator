@@ -9,8 +9,10 @@ use ReflectionClass;
 
 class MakeSwaggerForRequest extends Command
 {
-    private string $namespace = "App\\Documents\\Requests";
-    private string $path = "app/Documents/Requests";
+    private string $namespace = 'App\\Documents\\Requests';
+
+    private string $path = 'app/Documents/Requests';
+
     protected bool $write = false;
 
     private $swagger;
@@ -49,13 +51,13 @@ class MakeSwaggerForRequest extends Command
     {
         $all = empty(array_filter($namespace_input_file)) ? $this->loadRequests() : $namespace_input_file;
 
-        $swagger = "";
+        $swagger = '';
 
         foreach ($all as $name) {
             try {
                 $reflectionClass = new ReflectionClass($name);
 
-                if (!$reflectionClass->isSubclassOf('Illuminate\Foundation\Http\FormRequest')) {
+                if (! $reflectionClass->isSubclassOf('Illuminate\Foundation\Http\FormRequest')) {
                     continue;
                 }
                 $swagger = $this->makeSwagger($name);
@@ -65,24 +67,23 @@ class MakeSwaggerForRequest extends Command
                 $this->error($ex->getMessage());
             }
         }
+
         return $swagger;
     }
-
 
     private function generateDoc($name, $content)
     {
         $path = str_replace('App\\Http\\Requests', $this->path, $name);
         $path = str_replace('\\', '/', $path);
-        $filename = substr($path, strrpos($path, '/') + 1) . 'Swagger.php';
+        $filename = substr($path, strrpos($path, '/') + 1).'Swagger.php';
         $path = substr($path, 0, strrpos($path, '/'));
 
-
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             mkdir($path, 0755, true);
         }
 
-        $fullName = $path . '/' . $filename;
-        file_put_contents($fullName, $content . "\n }");
+        $fullName = $path.'/'.$filename;
+        file_put_contents($fullName, $content."\n }");
         $this->info($fullName);
     }
 
@@ -90,15 +91,16 @@ class MakeSwaggerForRequest extends Command
     {
         $swaggerRules = $this->getRules($name)[0];
         $swaggerHeader = $this->getHeader($name, $this->getRules($name)[1]);
-        return $swaggerHeader .
+
+        return $swaggerHeader.
             $swaggerRules;
     }
 
     private function getHeader(string $name, $required_str)
     {
         $namespace = str_replace('App\\Http\\Requests', $this->namespace, $name);
-        $className = \Str::afterLast($namespace, "\\") . "Swagger";
-        $namespace = \Str::beforeLast($namespace, "\\");
+        $className = \Str::afterLast($namespace, '\\').'Swagger';
+        $namespace = \Str::beforeLast($namespace, '\\');
 
         return "<?php
         namespace {$namespace};
@@ -124,8 +126,7 @@ class MakeSwaggerForRequest extends Command
         } catch (Exception $ex) {
             $this->error($ex->getMessage());
         } finally {
-
-            $swaggerRules = "";
+            $swaggerRules = '';
             $all = [];
             foreach (($rules) as $key => $rule) {
                 $result = [];
@@ -133,12 +134,12 @@ class MakeSwaggerForRequest extends Command
                     array_push($required_list, $key);
                 }
                 $type = $this->findType($rule, $key);
-                $key = str_replace(".*", "", $key);
+                $key = str_replace('.*', '', $key);
                 $example = $this->getExampleByType($type);
                 $result['key'] = $key;
                 $result['type'] = $type;
                 $result['example'] = $example;
-                $result['php_type'] = ($type == "json") ? "string" : $type;
+                $result['php_type'] = ($type == 'json') ? 'string' : $type;
                 $all[] = $result;
             }
 
@@ -155,16 +156,16 @@ class MakeSwaggerForRequest extends Command
         $collections = collect($results);
 
         $uniqueByKey = $collections->reject(function ($item) use ($collections) {
-            return  $item['type'] !== "json" && $collections->countBy('key')[$item['key']] > 1;
+            return  $item['type'] !== 'json' && $collections->countBy('key')[$item['key']] > 1;
         });
 
-        $swaggerRules = "";
+        $swaggerRules = '';
         foreach ($uniqueByKey as $result) {
             $key = $result['key'];
-            $type  = $result['type'];
+            $type = $result['type'];
             $example = $result['example'];
             $php_type = $result['php_type'];
-            if (\Str::contains($key, ".")) {
+            if (\Str::contains($key, '.')) {
                 continue;
             }
             $swagger = "
@@ -173,22 +174,23 @@ class MakeSwaggerForRequest extends Command
             *      title=\"$key\",
             *      description=\"$key\",";
 
-            $swagger = $swagger . "
+            $swagger = $swagger."
             *      type=\"$type\",";
 
-            $swagger = $swagger . "
+            $swagger = $swagger."
             *      example=\"$example\"";
 
-            $swagger = $swagger . "
+            $swagger = $swagger.'
             * )
-            *";
-            $swagger = $swagger . "* @var $php_type
+            *';
+            $swagger = $swagger."* @var $php_type
             */";
             $key = str_replace('-', '_', $key);
-            $swagger = $swagger . "
+            $swagger = $swagger."
             public \$$key;";
             $swaggerRules .= $swagger;
         }
+
         return $swaggerRules;
     }
 
@@ -199,63 +201,66 @@ class MakeSwaggerForRequest extends Command
 
     private static function getRequiredStr(array $required_list)
     {
-        $j = "{";
+        $j = '{';
         foreach ($required_list as $item) {
-            $item = str_replace(".*", "", $item);
+            $item = str_replace('.*', '', $item);
             $j .= "\"{$item}\"";
-            if ($item !== str_replace(".*", "", end($required_list))) {
-                $j .= ",";
+            if ($item !== str_replace('.*', '', end($required_list))) {
+                $j .= ',';
             }
         }
-        return "required= " . $j . "}";
+
+        return 'required= '.$j.'}';
     }
 
     private function findType($rules, $key): string
     {
         try {
-
-            $type = "string";
-            if (\Str::contains($key, [".*"])) {
+            $type = 'string';
+            if (\Str::contains($key, ['.*'])) {
                 return 'json';
             }
             if (is_string($rules)) {
-                $rules = explode("|", $rules);
+                $rules = explode('|', $rules);
             }
-            if (!is_array($rules)) {
+            if (! is_array($rules)) {
                 return $type;
             }
 
             foreach ($rules as $rule) {
-                if (!is_string($rule)) {
+                if (! is_string($rule)) {
                     if (\Str::contains(get_class($rule), ['Illuminate\Validation\Rules\In'])) {
                         $type = 'json';
                         break;
                     }
+
                     continue;
                 }
                 $rule = strtolower($rule);
-                if ($rule)
+                if ($rule) {
                     if ($rule == 'string') {
-                        $type = "string";
+                        $type = 'string';
                         break;
                     }
+                }
                 if ($rule == 'int' || $rule == 'integer') {
-                    $type = "string";
+                    $type = 'string';
                     break;
                 }
                 if ($rule == 'string') {
-                    $type = "string";
+                    $type = 'string';
                     break;
                 }
                 if ($rule == 'bool' || $rule == 'boolean') {
-                    $type = "boolean";
+                    $type = 'boolean';
                     break;
                 }
                 if ($rule == 'enum' || $rule == 'in:') {
-                    $type = "boolean";
+                    $type = 'boolean';
                     break;
                 }
             }
+
             return $type;
         } catch (Exception $ex) {
             $this->error($ex->getMessage());
@@ -270,7 +275,7 @@ class MakeSwaggerForRequest extends Command
             'string' => 'This is a text',
             'boolean' => rand(0, 1) < 0.5,
             'bool' => rand(0, 1) < 0.5,
-            'json' => "{\"\"key\"\":\"\"value\"\",\"\"key2\"\":\"\"value2\"\"}"
+            'json' => '{""key"":""value"",""key2"":""value2""}'
         };
     }
 
@@ -284,8 +289,9 @@ class MakeSwaggerForRequest extends Command
 
         $dirs = glob($dir, GLOB_ONLYDIR);
         foreach ($dirs as $dir) {
-            if (!is_dir($dir)) {
+            if (! is_dir($dir)) {
                 $this->error("Cannot locate directory '{$dir}'");
+
                 continue;
             }
 
@@ -296,7 +302,7 @@ class MakeSwaggerForRequest extends Command
                 ksort($classMap);
 
                 foreach ($classMap as $request => $path) {
-                    if (\Str::contains($request, ["Abstract"])) {
+                    if (\Str::contains($request, ['Abstract'])) {
                         continue;
                     }
                     $requests[] = $request;
