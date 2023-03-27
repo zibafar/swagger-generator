@@ -20,7 +20,7 @@ class MakeSwaggerForRequest extends Command
      *
      * @var string
      */
-    protected $signature = 'swagger:requests {request?}';
+    protected $signature = 'swagger:request {request?}';
 
     /**
      * The console command description.

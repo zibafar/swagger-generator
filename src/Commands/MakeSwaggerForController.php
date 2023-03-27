@@ -5,7 +5,6 @@ namespace Zibafar\SwaggerGenerator\Commands;
 use Composer\ClassMapGenerator\ClassMapGenerator;
 use Exception;
 use Illuminate\Console\Command;
-use NunoMaduro\Collision\Adapters\Phpunit\State;
 use ReflectionClass;
 
 use Route;
@@ -16,7 +15,6 @@ class MakeSwaggerForController extends Command
     private string $src_namespace = "App\\Http\\Controllers";
     private string $des_namespace = "";
     private string $des_class = "";
-    private string $path = "app/Documents/Controllers";
     protected bool $write = false;
 
     private $swagger;
