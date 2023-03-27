@@ -2,7 +2,6 @@
 
 namespace Zibafar\SwaggerGenerator;
 
-
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Zibafar\SwaggerGenerator\Commands\MakeSwaggerForController as CommandsMakeSwaggerForController;
@@ -27,6 +26,6 @@ class SwaggerGeneratorServiceProvider extends PackageServiceProvider
             ->hasCommand(CommandsMakeSwaggerForController::class)
             // ->hasCommand(MakeSwaggerForModel::class)
             // ->hasCommand(MakeSwaggerForRequest::class)
-            ;
-}
+;
+    }
 }
