@@ -65,7 +65,6 @@ class MakeSwaggerForModel extends Command
         protected $dirs = [];
         protected $reset;
         protected $keep_text;
-        protected $phpstorm_noinspections;
         protected $write_model_external_builder_methods;
         /**
          * @var bool[string]
@@ -127,10 +126,7 @@ class MakeSwaggerForModel extends Command
 
                 $ignore = $this->option('ignore');
                 $this->reset = $this->option('reset');
-                $this->phpstorm_noinspections = $this->option('phpstorm-noinspections');
-                if ($this->option('smart-reset')) {
-                    $this->keep_text = $this->reset = true;
-                }
+
 
                 //If filename is default and Write is not specified, ask what to do
                 if (!$this->write && $filename === $this->filename && !$this->option('nowrite')) {
@@ -267,12 +263,7 @@ class MakeSwaggerForModel extends Command
                             $this->castPropertiesType($model);
                         }
 
-                        // $this->getPropertiesFromMethods($model);
-                        // $this->getSoftDeleteMethods($model);
-                        // $this->getCollectionMethods($model);
-                        // $this->getFactoryMethods($model);
 
-                        // $this->runModelHooks($model);
 
                         $output .= $this->createPhpDocs($name);
                         $ignore[] = $name;
@@ -284,14 +275,6 @@ class MakeSwaggerForModel extends Command
                     }
                 }
             }
-
-            if (!$hasDoctrine) {
-                $this->error(
-                    'Warning: `"doctrine/dbal": "~2.3"` is required to load database information. ' .
-                        'Please require that in your composer.json and run `composer update`.'
-                );
-            }
-
 
             return $output;
         }
