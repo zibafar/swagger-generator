@@ -26,7 +26,6 @@ class SwaggerGeneratorServiceProvider extends PackageServiceProvider
             ->hasCommand(SwaggerGeneratorCommand::class)
             ->hasCommand(CommandsMakeSwaggerForController::class)
             ->hasCommand(MakeSwaggerForModel::class)
-            ->hasCommand(MakeSwaggerForRequest::class)
-            ;
-}
+            ->hasCommand(MakeSwaggerForRequest::class);
+    }
 }

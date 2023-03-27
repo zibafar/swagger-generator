@@ -10,10 +10,14 @@ use Route;
 
 class MakeSwaggerForController extends Command
 {
-    private string $namespace = "App\\Documents\\Controllers";
-    private string $src_namespace = "App\\Http\\Controllers";
-    private string $des_namespace = "";
-    private string $des_class = "";
+    private string $namespace = 'App\\Documents\\Controllers';
+
+    private string $src_namespace = 'App\\Http\\Controllers';
+
+    private string $des_namespace = '';
+
+    private string $des_class = '';
+
     protected bool $write = false;
 
     private $swagger;
