@@ -1,7 +1,6 @@
 <?php
 
 namespace Zibafar\SwaggerGenerator\Commands;
-use Barryvdh\LaravelIdeHelper\Contracts\ModelHookInterface;
 use Barryvdh\Reflection\DocBlock;
 use Barryvdh\Reflection\DocBlock\Context;
 use Barryvdh\Reflection\DocBlock\Serializer as DocBlockSerializer;
@@ -56,24 +55,15 @@ class MakeSwaggerForModel extends Command
          */
         protected $description = 'Generate swagger for models';
 
-        protected $write_model_magic_where;
-        protected $write_model_relation_count_properties;
         protected $properties = [];
         protected $methods = [];
         protected $write = false;
-        protected $write_mixin = false;
         protected $dirs = [];
-        protected $reset;
         protected $keep_text;
-        protected $write_model_external_builder_methods;
         /**
          * @var bool[string]
          */
         protected $nullableColumns = [];
-        /**
-         * @var string[]
-         */
-        protected $foreignKeyConstraintsColumns = [];
 
         /**
          * During initialization we use Laravels Date Facade to
@@ -101,7 +91,6 @@ class MakeSwaggerForModel extends Command
         {
 
             $this->write = $this->option('write');
-            $this->write_mixin = $this->option('write-mixin');
             $this->dirs = ['app/Models'];
 
             $models = $this->argument('model');
@@ -125,7 +114,7 @@ class MakeSwaggerForModel extends Command
                 $filename = $path . '/' . $name;
 
                 $ignore = $this->option('ignore');
-                $this->reset = $this->option('reset');
+
 
 
                 //If filename is default and Write is not specified, ask what to do
@@ -188,14 +177,7 @@ class MakeSwaggerForModel extends Command
                     "Write models to {$this->filename} and adds @mixin to each model, avoiding IDE duplicate declaration warnings",
                 ],
                 ['nowrite', 'N', InputOption::VALUE_NONE, 'Don\'t write to Model file'],
-                ['reset', 'R', InputOption::VALUE_NONE, 'Remove the original phpdocs instead of appending'],
-                ['smart-reset', 'r', InputOption::VALUE_NONE, 'Refresh the properties/methods list, but keep the text'],
-                [
-                    'phpstorm-noinspections',
-                    'p', InputOption::VALUE_NONE,
-                    'Add PhpFullyQualifiedNameUsageInspection and PhpUnnecessaryFullyQualifiedNameInspection PHPStorm ' .
-                        'noinspection tags',
-                ],
+
                 ['ignore', 'I', InputOption::VALUE_OPTIONAL, 'Which models to ignore', ''],
             ];
         }
@@ -203,14 +185,12 @@ class MakeSwaggerForModel extends Command
         protected function generateDocs($loadModels, $ignore = '')
         {
             $output = "<?php
-
-
-    /**
-     * swagger generate
-     *
-     * @author Tesmino
-     */
-    \n\n";
+            /**
+             * swagger generate
+             *
+             * @author Tesmino
+             */
+            \n\n";
 
             $hasDoctrine = interface_exists('Doctrine\DBAL\Driver');
 
@@ -225,7 +205,7 @@ class MakeSwaggerForModel extends Command
 
             $ignore = array_merge(
                 explode(',', $ignore),
-                $this->laravel['config']->get('ide-helper.ignored_models', [])
+                $this->laravel['config']->get('swagger-generator.ignored_models', [])
             );
 
             foreach ($models as $name) {
@@ -262,8 +242,6 @@ class MakeSwaggerForModel extends Command
                         if (method_exists($model, 'getCasts')) {
                             $this->castPropertiesType($model);
                         }
-
-
 
                         $output .= $this->createPhpDocs($name);
                         $ignore[] = $name;
@@ -411,7 +389,7 @@ class MakeSwaggerForModel extends Command
          */
         protected function getTypeOverride($type)
         {
-            $typeOverrides = $this->laravel['config']->get('ide-helper.type_overrides', []);
+            $typeOverrides = $this->laravel['config']->get('swagger.type_overrides', []);
 
             return $typeOverrides[$type] ?? $type;
         }
@@ -428,11 +406,12 @@ class MakeSwaggerForModel extends Command
             $database = $model->getConnection()->getDatabaseName();
             $table = $model->getConnection()->getTablePrefix() . $model->getTable();
             $schema = $model->getConnection()->getDoctrineSchemaManager();
+
             $databasePlatform = $schema->getDatabasePlatform();
             $databasePlatform->registerDoctrineTypeMapping('enum', 'string');
 
             $platformName = $databasePlatform->getName();
-            $customTypes = $this->laravel['config']->get("ide-helper.custom_db_types.{$platformName}", []);
+            $customTypes = $this->laravel['config']->get("swagger-generator.custom_db_types.{$platformName}", []);
             foreach ($customTypes as $yourTypeName => $doctrineTypeName) {
                 try {
                     if (!Type::hasType($yourTypeName)) {
@@ -450,8 +429,6 @@ class MakeSwaggerForModel extends Command
             if (!$columns) {
                 return;
             }
-
-            $this->setForeignKeys($schema, $table);
             foreach ($columns as $column) {
                 $name = $column->getName();
                 if (in_array($name, $model->getDates())) {
@@ -587,9 +564,7 @@ class MakeSwaggerForModel extends Command
                             $builder . '|' . $this->getClassNameInDestinationFile($model, get_class($model))
                         );
 
-                        if ($this->write_model_external_builder_methods) {
-                            $this->writeModelExternalBuilderMethods($model);
-                        }
+
                     } elseif (
                         !method_exists('Illuminate\Database\Eloquent\Model', $method)
                         && !Str::startsWith($method, 'get')
@@ -656,7 +631,6 @@ class MakeSwaggerForModel extends Command
                                             $model,
                                             $collectionClass
                                         );
-                                        $collectionTypeHint = $this->getCollectionTypeHint($collectionClassNameInModel, $relatedModel);
                                         $this->setProperty(
                                             $method,
                                             $collectionTypeHint,
@@ -664,15 +638,7 @@ class MakeSwaggerForModel extends Command
                                             null,
                                             $comment
                                         );
-                                        if ($this->write_model_relation_count_properties) {
-                                            $this->setProperty(
-                                                Str::snake($method) . '_count',
-                                                'int|null',
-                                                true,
-                                                false
-                                                // What kind of comments should be added to the relation count here?
-                                            );
-                                        }
+
                                     } elseif (
                                         $relation === 'morphTo' ||
                                         ($this->getRelationReturnTypes()[$relation] ?? '') === 'morphTo'
@@ -704,39 +670,6 @@ class MakeSwaggerForModel extends Command
             }
         }
 
-        /**
-         * Check if the relation is nullable
-         *
-         * @param string   $relation
-         * @param Relation $relationObj
-         *
-         * @return bool
-         */
-        protected function isRelationNullable(string $relation, Relation $relationObj): bool
-        {
-            $reflectionObj = new ReflectionObject($relationObj);
-
-            if (in_array($relation, ['hasOne', 'hasOneThrough', 'morphOne'], true)) {
-                $defaultProp = $reflectionObj->getProperty('withDefault');
-                $defaultProp->setAccessible(true);
-
-                return !$defaultProp->getValue($relationObj);
-            }
-
-            if (!$reflectionObj->hasProperty('foreignKey')) {
-                return false;
-            }
-
-            $fkProp = $reflectionObj->getProperty('foreignKey');
-            $fkProp->setAccessible(true);
-
-            if ($relation === 'belongsTo') {
-                return isset($this->nullableColumns[$fkProp->getValue($relationObj)]) ||
-                    !in_array($fkProp->getValue($relationObj), $this->foreignKeyConstraintsColumns, true);
-            }
-
-            return isset($this->nullableColumns[$fkProp->getValue($relationObj)]);
-        }
 
         /**
          * @param string      $name
@@ -809,23 +742,10 @@ class MakeSwaggerForModel extends Command
             }
             $example = $example->toArray();
             $classname = $reflection->getShortName();
-            $originalDoc = $reflection->getDocComment();
-            // $keyword = $this->getClassKeyword($reflection);
-            $interfaceNames = array_diff_key(
-                $reflection->getInterfaceNames(),
-                $reflection->getParentClass()->getInterfaceNames()
-            );
 
-            if ($this->reset) {
-                $phpdoc = new DocBlock('', new Context($namespace));
-                if ($this->keep_text) {
-                    $phpdoc->setText(
-                        (new DocBlock($reflection, new Context($namespace)))->getText()
-                    );
-                }
-            } else {
+
+
                 $phpdoc = new DocBlock($reflection, new Context($namespace));
-            }
 
             if (!$phpdoc->getText()) {
                 $phpdoc->setText($class);
@@ -968,38 +888,14 @@ class MakeSwaggerForModel extends Command
             return '\\' . get_class($model->newCollection());
         }
 
-        /**
-         * Determine a model classes' collection type hint.
-         *
-         * @param string $collectionClassNameInModel
-         * @param string $relatedModel
-         * @return string
-         */
-        protected function getCollectionTypeHint(string $collectionClassNameInModel, string $relatedModel): string
-        {
-            $useGenericsSyntax = $this->laravel['config']->get('ide-helper.use_generics_annotations', true);
-            if ($useGenericsSyntax) {
-                return $collectionClassNameInModel . '<int, ' . $relatedModel . '>';
-            } else {
-                return $collectionClassNameInModel . '|' . $relatedModel . '[]';
-            }
-        }
 
-
-        /**
-         * Returns the return types of relations
-         */
-        protected function getRelationReturnTypes(): array
-        {
-            return $this->laravel['config']->get('ide-helper.additional_relation_return_types', []);
-        }
 
         /**
          * @return bool
          */
         protected function hasCamelCaseModelProperties()
         {
-            return $this->laravel['config']->get('ide-helper.model_camel_case_properties', false);
+            return $this->laravel['config']->get('swagger-generator.model_camel_case_properties', false);
         }
 
         protected function getAttributeReturnType(Model $model, string $method): Collection
@@ -1111,94 +1007,6 @@ class MakeSwaggerForModel extends Command
         }
 
 
-        /**
-         * Generates methods provided by the SoftDeletes trait
-         * @param \Illuminate\Database\Eloquent\Model $model
-         */
-        protected function getSoftDeleteMethods($model)
-        {
-            $traits = class_uses_recursive($model);
-            if (in_array('Illuminate\\Database\\Eloquent\\SoftDeletes', $traits)) {
-                $modelName = $this->getClassNameInDestinationFile($model, get_class($model));
-                $builder = $this->getClassNameInDestinationFile($model, \Illuminate\Database\Eloquent\Builder::class);
-                $this->setMethod('withTrashed', $builder . '|' . $modelName, []);
-                $this->setMethod('withoutTrashed', $builder . '|' . $modelName, []);
-                $this->setMethod('onlyTrashed', $builder . '|' . $modelName, []);
-            }
-        }
-
-        /**
-         * Generate factory method from "HasFactory" trait.
-         *
-         * @param \Illuminate\Database\Eloquent\Model $model
-         */
-        protected function getFactoryMethods($model)
-        {
-            if (!class_exists(Factory::class)) {
-                return;
-            }
-
-            $modelName = get_class($model);
-
-
-            $traits = class_uses_recursive($modelName);
-            if (!in_array('Illuminate\\Database\\Eloquent\\Factories\\HasFactory', $traits)) {
-                return;
-            }
-
-            if ($modelName::newFactory()) {
-                $factory = get_class($modelName::newFactory());
-            } else {
-                $factory = Factory::resolveFactoryName($modelName);
-            }
-
-            $factory = '\\' . trim($factory, '\\');
-
-            if (!class_exists($factory)) {
-                return;
-            }
-
-            if (version_compare($this->laravel->version(), '9', '>=')) {
-                $this->setMethod('factory', $factory, ['$count = null, $state = []']);
-            } else {
-                $this->setMethod('factory', $factory, ['...$parameters']);
-            }
-        }
-
-        /**
-         * Generates methods that return collections
-         * @param \Illuminate\Database\Eloquent\Model $model
-         */
-        protected function getCollectionMethods($model)
-        {
-            $collectionClass = $this->getCollectionClass(get_class($model));
-
-            if ($collectionClass !== '\\' . \Illuminate\Database\Eloquent\Collection::class) {
-                $collectionClassInModel = $this->getClassNameInDestinationFile($model, $collectionClass);
-
-                $collectionTypeHint = $this->getCollectionTypeHint($collectionClassInModel, 'static');
-                $this->setMethod('get', $collectionTypeHint, ['$columns = [\'*\']']);
-                $this->setMethod('all', $collectionTypeHint, ['$columns = [\'*\']']);
-            }
-        }
-
-        /**
-         * @param ReflectionClass $reflection
-         * @return string
-         */
-        protected function getClassKeyword(ReflectionClass $reflection)
-        {
-            if ($reflection->isFinal()) {
-                $keyword = 'final ';
-            } elseif ($reflection->isAbstract()) {
-                $keyword = 'abstract ';
-            } else {
-                $keyword = '';
-            }
-
-            return $keyword;
-        }
-
         protected function isInboundCast(string $type): bool
         {
             return class_exists($type) && is_subclass_of($type, CastsInboundAttributes::class);
@@ -1278,64 +1086,12 @@ class MakeSwaggerForModel extends Command
 
         protected function getClassNameInDestinationFile(object $model, string $className): string
         {
-            $reflection = $model instanceof ReflectionClass
-                ? $model
-                : new ReflectionObject($model);
-
             $className = trim($className, '\\');
-            $writingToExternalFile = !$this->write || $this->write_mixin;
-            $classIsNotInExternalFile = $reflection->getName() !== $className;
-            $forceFQCN = $this->laravel['config']->get('ide-helper.force_fqn', false);
+            return '\\' . $className;
 
-            if (($writingToExternalFile && $classIsNotInExternalFile) || $forceFQCN) {
-                return '\\' . $className;
-            }
-
-            $usedClassNames = $this->getUsedClassNames($reflection);
-            return $usedClassNames[$className] ?? ('\\' . $className);
         }
 
-        /**
-         * @param ReflectionClass $reflection
-         * @return string[]
-         */
-        protected function getUsedClassNames(ReflectionClass $reflection): array
-        {
-            $namespaceAliases = array_flip((new ContextFactory())->createFromReflector($reflection)->getNamespaceAliases());
-            $namespaceAliases[$reflection->getName()] = $reflection->getShortName();
 
-            return $namespaceAliases;
-        }
-
-        protected function writeModelExternalBuilderMethods(Model $model): void
-        {
-            $fullBuilderClass = '\\' . get_class($model->newModelQuery());
-            $newBuilderMethods = get_class_methods($fullBuilderClass);
-            $originalBuilderMethods = get_class_methods('\Illuminate\Database\Eloquent\Builder');
-
-            // diff the methods between the new builder and original one
-            // and create helpers for the ones that are new
-            $newMethodsFromNewBuilder = array_diff($newBuilderMethods, $originalBuilderMethods);
-
-            if (!$newMethodsFromNewBuilder) {
-                return;
-            }
-
-            // after we have retrieved the builder's methods
-            // get the class of the builder based on the FQCN option
-            $builderClassBasedOnFQCNOption = $this->getClassNameInDestinationFile($model, get_class($model->newModelQuery()));
-
-            foreach ($newMethodsFromNewBuilder as $builderMethod) {
-                $reflection = new \ReflectionMethod($fullBuilderClass, $builderMethod);
-                $args = $this->getParameters($reflection);
-
-                $this->setMethod(
-                    $builderMethod,
-                    $builderClassBasedOnFQCNOption . '|' . $this->getClassNameInDestinationFile($model, get_class($model)),
-                    $args
-                );
-            }
-        }
 
         protected function getParamType(\ReflectionMethod $method, \ReflectionParameter $parameter): ?string
         {
@@ -1446,39 +1202,7 @@ class MakeSwaggerForModel extends Command
             return $parameterName;
         }
 
-        /**
-         * @param \Illuminate\Database\Eloquent\Model $model
-         * @throws \Illuminate\Contracts\Container\BindingResolutionException
-         * @throws \RuntimeException
-         */
-        protected function runModelHooks($model): void
-        {
-            $hooks = $this->laravel['config']->get('ide-helper.model_hooks', []);
 
-            foreach ($hooks as $hook) {
-                $hookInstance = $this->laravel->make($hook);
 
-                if (!$hookInstance instanceof ModelHookInterface) {
-                    throw new \RuntimeException(
-                        'Your IDE helper model hook must implement Barryvdh\LaravelIdeHelper\Contracts\ModelHookInterface'
-                    );
-                }
 
-                $hookInstance->run($this, $model);
-            }
-        }
-
-        /**
-         * @param \Doctrine\DBAL\Schema\AbstractSchemaManager $schema
-         * @param string $table
-         * @throws DBALException
-         */
-        protected function setForeignKeys($schema, $table)
-        {
-            foreach ($schema->listTableForeignKeys($table) as $foreignKeyConstraint) {
-                foreach ($foreignKeyConstraint->getLocalColumns() as $columnName) {
-                    $this->foreignKeyConstraintsColumns[] = $columnName;
-                }
-            }
-        }
     }
