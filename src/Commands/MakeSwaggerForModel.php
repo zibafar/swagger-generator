@@ -1007,6 +1007,25 @@ class MakeSwaggerForModel extends Command
         }
 
 
+
+
+        /**
+         * @param ReflectionClass $reflection
+         * @return string
+         */
+        protected function getClassKeyword(ReflectionClass $reflection)
+        {
+            if ($reflection->isFinal()) {
+                $keyword = 'final ';
+            } elseif ($reflection->isAbstract()) {
+                $keyword = 'abstract ';
+            } else {
+                $keyword = '';
+            }
+
+            return $keyword;
+        }
+
         protected function isInboundCast(string $type): bool
         {
             return class_exists($type) && is_subclass_of($type, CastsInboundAttributes::class);
